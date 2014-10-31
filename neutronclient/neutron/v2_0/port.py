@@ -36,7 +36,9 @@ class ListPort(neutronV20.ListCommand):
 
     resource = 'port'
     _formatters = {'fixed_ips': _format_fixed_ips, }
-    list_columns = ['id', 'name', 'mac_address', 'fixed_ips']
+    # Add min_rate for displaying minimum bandwidth of a port
+    list_columns = ['id', 'name', 'mac_address', 'fixed_ips',
+                    'min_rate', 'max_rate']
     pagination_support = True
     sorting_support = True
 
@@ -177,6 +179,16 @@ class CreatePort(neutronV20.CreateCommand, UpdatePortSecGroupMixin,
             '--fixed_ip',
             action='append',
             help=argparse.SUPPRESS)
+
+        parser.add_argument(
+            '--min_rate',
+            action='append',
+            help='Minimum port rate (mbps)')
+
+        parser.add_argument(
+            '--max_rate',
+            action='append',
+            help='Maximum port rate (mbps)')
 
         self.add_arguments_secgroup(parser)
         self.add_arguments_extradhcpopt(parser)
