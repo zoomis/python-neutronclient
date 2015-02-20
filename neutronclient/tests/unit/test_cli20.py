@@ -17,10 +17,10 @@
 import contextlib
 import itertools
 import sys
-import urllib
 
 import fixtures
 from mox3 import mox
+from oslo.utils import encodeutils
 from oslotest import base
 import requests
 import six
@@ -28,6 +28,7 @@ import six.moves.urllib.parse as urlparse
 
 from neutronclient.common import constants
 from neutronclient.common import exceptions
+from neutronclient.common import utils
 from neutronclient.neutron import v2_0 as neutronV2_0
 from neutronclient import shell
 from neutronclient.v2_0 import client
@@ -176,11 +177,6 @@ class CLITestV20Base(base.BaseTestCase):
 
     def _get_attr_metadata(self):
         return self.metadata
-        client.Client.EXTED_PLURALS.update(constants.PLURALS)
-        client.Client.EXTED_PLURALS.update({'tags': 'tag'})
-        return {'plurals': client.Client.EXTED_PLURALS,
-                'xmlns': constants.XML_NS_V20,
-                constants.EXT_NS: {'prefix': 'http://xxxx.yy.com'}}
 
     def setUp(self, plurals=None):
         """Prepare the test environment."""
@@ -303,7 +299,7 @@ class CLITestV20Base(base.BaseTestCase):
                              fields_1=(), fields_2=(), page_size=None,
                              sort_key=(), sort_dir=(), response_contents=None,
                              base_args=None, path=None, cmd_resources=None,
-                             parent_id=None):
+                             parent_id=None, output_format=None):
         self.mox.StubOutWithMock(cmd, "get_client")
         self.mox.StubOutWithMock(self.client.httpclient, "request")
         cmd.get_client().MultipleTimes().AndReturn(self.client)
@@ -333,12 +329,12 @@ class CLITestV20Base(base.BaseTestCase):
             args.append("--tag")
         for tag in tags:
             args.append(tag)
-            if isinstance(tag, unicode):
-                tag = urllib.quote(tag.encode('utf-8'))
+            tag_query = urlparse.urlencode(
+                {'tag': encodeutils.safe_encode(tag)})
             if query:
-                query += "&tag=" + tag
+                query += "&" + tag_query
             else:
-                query = "tag=" + tag
+                query = tag_query
         if (not tags) and fields_2:
             args.append('--')
         if fields_2:
@@ -382,6 +378,9 @@ class CLITestV20Base(base.BaseTestCase):
             path = getattr(self.client, cmd_resources + "_path")
             if parent_id:
                 path = path % parent_id
+        if output_format:
+            args.append('-f')
+            args.append(output_format)
         self.client.httpclient.request(
             MyUrlComparator(end_url(path, query, format=self.format),
                             self.client),
@@ -400,6 +399,7 @@ class CLITestV20Base(base.BaseTestCase):
         return _str
 
     def _test_list_resources_with_pagination(self, resources, cmd,
+                                             base_args=None,
                                              cmd_resources=None,
                                              parent_id=None):
         self.mox.StubOutWithMock(cmd, "get_client")
@@ -434,7 +434,8 @@ class CLITestV20Base(base.BaseTestCase):
                 'X-Auth-Token', TOKEN)).AndReturn((MyResp(200), resstr2))
         self.mox.ReplayAll()
         cmd_parser = cmd.get_parser("list_" + cmd_resources)
-        args = ['--request-format', self.format]
+        args = base_args if base_args is not None else []
+        args.extend(['--request-format', self.format])
         shell.run_command(cmd, cmd_parser, args)
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
@@ -567,17 +568,16 @@ class ClientV2TestJson(CLITestV20Base):
         unicode_text = u'\u7f51\u7edc'
         # url with unicode
         action = u'/test'
-        expected_action = action.encode('utf-8')
+        expected_action = action
         # query string with unicode
         params = {'test': unicode_text}
-        expect_query = urllib.urlencode({'test':
-                                         unicode_text.encode('utf-8')})
+        expect_query = urlparse.urlencode(utils.safe_encode_dict(params))
         # request body with unicode
         body = params
         expect_body = self.client.serialize(body)
-        # headers with unicode
-        self.client.httpclient.auth_token = unicode_text
-        expected_auth_token = unicode_text.encode('utf-8')
+        self.client.httpclient.auth_token = encodeutils.safe_encode(
+            unicode_text)
+        expected_auth_token = encodeutils.safe_encode(unicode_text)
 
         self.client.httpclient.request(
             end_url(expected_action, query=expect_query, format=self.format),

@@ -38,6 +38,7 @@ from cliff import app
 from cliff import commandmanager
 
 from neutronclient.common import clientmanager
+from neutronclient.common import command as openstack_command
 from neutronclient.common import exceptions as exc
 from neutronclient.common import utils
 from neutronclient.i18n import _
@@ -52,6 +53,11 @@ from neutronclient.neutron.v2_0.fw import firewallrule
 from neutronclient.neutron.v2_0.lb import healthmonitor as lb_healthmonitor
 from neutronclient.neutron.v2_0.lb import member as lb_member
 from neutronclient.neutron.v2_0.lb import pool as lb_pool
+from neutronclient.neutron.v2_0.lb.v2 import healthmonitor as lbaas_healthmon
+from neutronclient.neutron.v2_0.lb.v2 import listener as lbaas_listener
+from neutronclient.neutron.v2_0.lb.v2 import loadbalancer as lbaas_loadbalancer
+from neutronclient.neutron.v2_0.lb.v2 import member as lbaas_member
+from neutronclient.neutron.v2_0.lb.v2 import pool as lbaas_pool
 from neutronclient.neutron.v2_0.lb import vip as lb_vip
 from neutronclient.neutron.v2_0 import metering
 from neutronclient.neutron.v2_0.nec import packetfilter
@@ -116,7 +122,12 @@ def check_non_negative_int(value):
     return value
 
 
+class BashCompletionCommand(openstack_command.OpenStackCommand):
+    """Prints all of the commands and options for bash-completion."""
+    resource = "bash_completion"
+
 COMMAND_V2 = {
+    'bash-completion': BashCompletionCommand,
     'net-list': network.ListNetwork,
     'net-external-list': network.ListExternalNetwork,
     'net-show': network.ShowNetwork,
@@ -164,6 +175,31 @@ COMMAND_V2 = {
     'security-group-rule-show': securitygroup.ShowSecurityGroupRule,
     'security-group-rule-create': securitygroup.CreateSecurityGroupRule,
     'security-group-rule-delete': securitygroup.DeleteSecurityGroupRule,
+    'lbaas-loadbalancer-list': lbaas_loadbalancer.ListLoadBalancer,
+    'lbaas-loadbalancer-show': lbaas_loadbalancer.ShowLoadBalancer,
+    'lbaas-loadbalancer-create': lbaas_loadbalancer.CreateLoadBalancer,
+    'lbaas-loadbalancer-update': lbaas_loadbalancer.UpdateLoadBalancer,
+    'lbaas-loadbalancer-delete': lbaas_loadbalancer.DeleteLoadBalancer,
+    'lbaas-listener-list': lbaas_listener.ListListener,
+    'lbaas-listener-show': lbaas_listener.ShowListener,
+    'lbaas-listener-create': lbaas_listener.CreateListener,
+    'lbaas-listener-update': lbaas_listener.UpdateListener,
+    'lbaas-listener-delete': lbaas_listener.DeleteListener,
+    'lbaas-pool-list': lbaas_pool.ListPool,
+    'lbaas-pool-show': lbaas_pool.ShowPool,
+    'lbaas-pool-create': lbaas_pool.CreatePool,
+    'lbaas-pool-update': lbaas_pool.UpdatePool,
+    'lbaas-pool-delete': lbaas_pool.DeletePool,
+    'lbaas-healthmonitor-list': lbaas_healthmon.ListHealthMonitor,
+    'lbaas-healthmonitor-show': lbaas_healthmon.ShowHealthMonitor,
+    'lbaas-healthmonitor-create': lbaas_healthmon.CreateHealthMonitor,
+    'lbaas-healthmonitor-update': lbaas_healthmon.UpdateHealthMonitor,
+    'lbaas-healthmonitor-delete': lbaas_healthmon.DeleteHealthMonitor,
+    'lbaas-member-list': lbaas_member.ListMember,
+    'lbaas-member-show': lbaas_member.ShowMember,
+    'lbaas-member-create': lbaas_member.CreateMember,
+    'lbaas-member-update': lbaas_member.UpdateMember,
+    'lbaas-member-delete': lbaas_member.DeleteMember,
     'lb-vip-list': lb_vip.ListVip,
     'lb-vip-show': lb_vip.ShowVip,
     'lb-vip-create': lb_vip.CreateVip,
@@ -344,6 +380,9 @@ class NeutronShell(app.App):
         self.commands = COMMANDS
         for k, v in self.commands[apiversion].items():
             self.command_manager.add_command(k, v)
+
+        # Pop the 'complete' to correct the outputs of 'neutron help'.
+        self.command_manager.commands.pop('complete')
 
         # This is instantiated in initialize_app() only when using
         # password flow auth
@@ -644,7 +683,7 @@ class NeutronShell(app.App):
             help_pos = -1
             help_command_pos = -1
             for arg in argv:
-                if arg == 'bash-completion':
+                if arg == 'bash-completion' and help_command_pos == -1:
                     self._bash_completion()
                     return 0
                 if arg in self.commands[self.api_version]:
@@ -719,8 +758,8 @@ class NeutronShell(app.App):
                 project_info = (self.options.os_tenant_name or
                                 self.options.os_tenant_id or
                                 (self.options.os_project_name and
-                                    (self.options.project_domain_name or
-                                     self.options.project_domain_id)) or
+                                    (self.options.os_project_domain_name or
+                                     self.options.os_project_domain_id)) or
                                 self.options.os_project_id)
 
                 if (not self.options.os_username
@@ -728,7 +767,7 @@ class NeutronShell(app.App):
                     raise exc.CommandError(
                         _("You must provide a username or user ID via"
                           "  --os-username, env[OS_USERNAME] or"
-                          "  --os-user_id, env[OS_USER_ID]"))
+                          "  --os-user-id, env[OS_USER_ID]"))
 
                 if not self.options.os_password:
                     # No password, If we've got a tty, try prompting for it

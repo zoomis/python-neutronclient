@@ -83,11 +83,33 @@ class CLITestV20RouterJSON(test_cli20.CLITestV20Base):
                                    position_names, position_values,
                                    **expected)
 
-    def test_create_router_distributed(self):
-        self._create_router_distributed_or_ha(distributed=True)
+    def test_create_router_distributed_True(self):
+        """Create router: --distributed=True."""
+        self._create_router_distributed_or_ha(distributed='True')
 
-    def test_create_router_ha(self):
-        self._create_router_distributed_or_ha(ha=True)
+    def test_create_router_ha_with_True(self):
+        self._create_router_distributed_or_ha(ha='True')
+
+    def test_create_router_ha_with_true(self):
+        self._create_router_distributed_or_ha(ha='true')
+
+    def test_create_router_ha_with_False(self):
+        self._create_router_distributed_or_ha(ha='False')
+
+    def test_create_router_ha_with_false(self):
+        self._create_router_distributed_or_ha(ha='false')
+
+    def test_create_router_distributed_False(self):
+        """Create router: --distributed=False."""
+        self._create_router_distributed_or_ha(distributed='False')
+
+    def test_create_router_distributed_true(self):
+        """Create router: --distributed=true."""
+        self._create_router_distributed_or_ha(distributed='true')
+
+    def test_create_router_distributed_false(self):
+        """Create router: --distributed=false."""
+        self._create_router_distributed_or_ha(distributed='false')
 
     def test_list_routers_detail(self):
         """list routers: -D."""

@@ -127,6 +127,29 @@ class ShellTest(testtools.TestCase):
             matchers.MatchesRegex(required))
         self.assertFalse(stderr)
 
+    def test_bash_completion_in_outputs_of_help_command(self):
+        help_text, stderr = self.shell('help')
+        self.assertFalse(stderr)
+        completion_cmd = "bash-completion"
+        completion_help_str = ("Prints all of the commands and options "
+                               "for bash-completion.")
+        self.assertIn(completion_cmd, help_text)
+        self.assertIn(completion_help_str, help_text)
+
+    def test_bash_completion_command(self):
+        # just check we have some output
+        required = [
+            '.*--tenant_id',
+            '.*--client-certificate',
+            '.*help',
+            '.*gateway-device-create',
+            '.*--dns-nameserver']
+        help_text, stderr = self.shell('neutron bash-completion')
+        self.assertFalse(stderr)
+        for r in required:
+            self.assertThat(help_text,
+                            matchers.MatchesRegex(r, re.DOTALL | re.MULTILINE))
+
     def test_unknown_auth_strategy(self):
         self.useFixture(fixtures.FakeLogger(level=logging.DEBUG))
         stdout, stderr = self.shell('--os-auth-strategy fake quota-list')
@@ -139,7 +162,7 @@ class ShellTest(testtools.TestCase):
         # emulate Keystone version discovery
         mrequests.register_uri('GET',
                                auth.V3_URL,
-                               text=auth.V3_VERSION_ENTRY)
+                               json=auth.V3_VERSION_ENTRY)
 
         neutron_shell = openstack_shell.NeutronShell('2.0')
         self.addCleanup(self.mox.UnsetStubs)
@@ -174,7 +197,7 @@ class ShellTest(testtools.TestCase):
         # emulate Keystone version discovery
         mrequests.register_uri('GET',
                                auth.V3_URL,
-                               text=auth.V3_VERSION_ENTRY)
+                               json=auth.V3_VERSION_ENTRY)
 
         neutron_shell = openstack_shell.NeutronShell('2.0')
         self.addCleanup(self.mox.UnsetStubs)
@@ -210,7 +233,7 @@ class ShellTest(testtools.TestCase):
         # emulate Keystone version discovery
         mrequests.register_uri('GET',
                                auth.V2_URL,
-                               text=auth.V2_VERSION_ENTRY)
+                               json=auth.V2_VERSION_ENTRY)
 
         neutron_shell = openstack_shell.NeutronShell('2.0')
         self.addCleanup(self.mox.UnsetStubs)
@@ -387,7 +410,7 @@ class ShellTest(testtools.TestCase):
         # emulate Keystone version discovery
         mrequests.register_uri('GET',
                                auth.V2_URL,
-                               text=auth.V2_VERSION_ENTRY)
+                               json=auth.V2_VERSION_ENTRY)
 
         neutron_shell = openstack_shell.NeutronShell('2.0')
         self.addCleanup(self.mox.UnsetStubs)
@@ -427,7 +450,7 @@ class ShellTest(testtools.TestCase):
         self.mox.StubOutClassWithMocks(openstack_shell, 'NeutronShell')
         qshell_mock = openstack_shell.NeutronShell('2.0')
         unicode_text = u'\u7f51\u7edc'
-        argv = ['net-list', unicode_text, unicode_text.encode('utf-8')]
+        argv = ['net-list', unicode_text, unicode_text]
         qshell_mock.run([u'net-list', unicode_text,
                          unicode_text]).AndReturn(0)
         self.mox.ReplayAll()
